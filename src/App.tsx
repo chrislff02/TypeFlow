@@ -1,26 +1,28 @@
 import { useEffect, useState } from "react";
 import { Keyboard, RotateCcw, GitBranch } from "lucide-react";
 import TypingText from "./components/TypingText";
+import { generateWords } from "./utils/generateWords";
 
 const TEST_DURATIONS = [15, 30, 60, 120];
 
-const SAMPLE_TEXT =
-  "the quick brown fox jumps over the lazy dog while the sun shines brightly across the peaceful valley";
-
 function App() {
   const [duration, setDuration] = useState(30);
+
+  // Randomly generated typing text.
+  const [text, setText] = useState(() => generateWords(80));
+
+  // User input and reset state.
   const [typedText, setTypedText] = useState("");
   const [resetKey, setResetKey] = useState(0);
 
-  // Timer state
+  // Timer state.
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
-  // Determine whether the test is running.
   const isRunning = startTime !== null && !isFinished;
 
-  // Countdown timer
+  // Countdown timer.
   useEffect(() => {
     if (!isRunning || startTime === null) return;
 
@@ -29,7 +31,6 @@ function App() {
 
       setElapsedMs(elapsed);
 
-      // Automatically finish when time expires.
       if (elapsed >= duration * 1000) {
         setIsFinished(true);
       }
@@ -38,27 +39,31 @@ function App() {
     return () => window.clearInterval(interval);
   }, [isRunning, startTime, duration]);
 
-  // Handle typing and start the timer.
+  // Handle typing and generate additional words.
   const handleTyping = (value: string) => {
     if (isFinished) return;
 
-    // Begin timing on the first character.
+    // Start the timer on the first character.
     if (startTime === null && value.length > 0) {
       setStartTime(Date.now());
     }
 
     setTypedText(value);
 
-    // Finish if the user completes all available text.
-    if (value.length === SAMPLE_TEXT.length) {
-      setIsFinished(true);
+    // Add more words when approaching the end.
+    const remainingCharacters = text.length - value.length;
+
+    if (remainingCharacters < 150) {
+      setText((previous) => {
+        return `${previous} ${generateWords(50)}`;
+      });
     }
   };
 
   // Count correct characters.
   const correctCharacters = typedText
     .split("")
-    .filter((character, index) => character === SAMPLE_TEXT[index]).length;
+    .filter((character, index) => character === text[index]).length;
 
   // Count incorrect characters.
   const incorrectCharacters = typedText.length - correctCharacters;
@@ -78,8 +83,9 @@ function App() {
   // Calculate remaining time.
   const timeLeft = Math.max(0, Math.ceil((duration * 1000 - elapsedMs) / 1000));
 
-  // Reset the entire test.
+  // Reset the entire test and generate new words.
   const resetTest = () => {
+    setText(generateWords(80));
     setTypedText("");
     setStartTime(null);
     setElapsedMs(0);
@@ -176,7 +182,7 @@ function App() {
 
         {/* Typing Interface */}
         <TypingText
-          text={SAMPLE_TEXT}
+          text={text}
           typedText={typedText}
           onTyping={handleTyping}
           resetKey={resetKey}
