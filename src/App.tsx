@@ -1,6 +1,7 @@
-import { useState } from "react";
-import TypingText from "./components/TypingText";
+import { useEffect, useState } from "react";
 import { Keyboard, RotateCcw, GitBranch } from "lucide-react";
+import TypingText from "./components/TypingText";
+
 const TEST_DURATIONS = [15, 30, 60, 120];
 
 const SAMPLE_TEXT =
@@ -8,7 +9,89 @@ const SAMPLE_TEXT =
 
 function App() {
   const [duration, setDuration] = useState(30);
+  const [typedText, setTypedText] = useState("");
   const [resetKey, setResetKey] = useState(0);
+
+  // Timer state
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
+
+  // Determine whether the test is running.
+  const isRunning = startTime !== null && !isFinished;
+
+  // Countdown timer
+  useEffect(() => {
+    if (!isRunning || startTime === null) return;
+
+    const interval = window.setInterval(() => {
+      const elapsed = Math.min(Date.now() - startTime, duration * 1000);
+
+      setElapsedMs(elapsed);
+
+      // Automatically finish when time expires.
+      if (elapsed >= duration * 1000) {
+        setIsFinished(true);
+      }
+    }, 100);
+
+    return () => window.clearInterval(interval);
+  }, [isRunning, startTime, duration]);
+
+  // Handle typing and start the timer.
+  const handleTyping = (value: string) => {
+    if (isFinished) return;
+
+    // Begin timing on the first character.
+    if (startTime === null && value.length > 0) {
+      setStartTime(Date.now());
+    }
+
+    setTypedText(value);
+
+    // Finish if the user completes all available text.
+    if (value.length === SAMPLE_TEXT.length) {
+      setIsFinished(true);
+    }
+  };
+
+  // Count correct characters.
+  const correctCharacters = typedText
+    .split("")
+    .filter((character, index) => character === SAMPLE_TEXT[index]).length;
+
+  // Count incorrect characters.
+  const incorrectCharacters = typedText.length - correctCharacters;
+
+  // Calculate accuracy.
+  const accuracy =
+    typedText.length > 0
+      ? Math.round((correctCharacters / typedText.length) * 100)
+      : 100;
+
+  // Calculate WPM.
+  const elapsedMinutes = Math.max(elapsedMs, 1000) / 60000;
+
+  const wpm =
+    startTime !== null ? Math.round(correctCharacters / 5 / elapsedMinutes) : 0;
+
+  // Calculate remaining time.
+  const timeLeft = Math.max(0, Math.ceil((duration * 1000 - elapsedMs) / 1000));
+
+  // Reset the entire test.
+  const resetTest = () => {
+    setTypedText("");
+    setStartTime(null);
+    setElapsedMs(0);
+    setIsFinished(false);
+    setResetKey((previous) => previous + 1);
+  };
+
+  // Change duration and restart.
+  const changeDuration = (newDuration: number) => {
+    setDuration(newDuration);
+    resetTest();
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-[#111827] text-[#e5e7eb]">
@@ -59,7 +142,7 @@ function App() {
               {TEST_DURATIONS.map((time) => (
                 <button
                   key={time}
-                  onClick={() => setDuration(time)}
+                  onClick={() => changeDuration(time)}
                   className={`cursor-pointer text-sm font-medium transition ${
                     duration === time
                       ? "text-emerald-400"
@@ -73,32 +156,58 @@ function App() {
           </div>
         </div>
 
-        {/* Test Information */}
+        {/* Live Statistics */}
         <div className="mb-8 flex justify-between text-lg">
           <div>
             <span className="text-gray-500">time </span>
-            <span className="font-semibold text-emerald-400">{duration}</span>
+            <span className="font-semibold text-emerald-400">{timeLeft}</span>
           </div>
 
           <div>
             <span className="text-gray-500">wpm </span>
-            <span className="font-semibold text-emerald-400">0</span>
+            <span className="font-semibold text-emerald-400">{wpm}</span>
           </div>
 
           <div>
             <span className="text-gray-500">accuracy </span>
-            <span className="font-semibold text-emerald-400">100%</span>
+            <span className="font-semibold text-emerald-400">{accuracy}%</span>
           </div>
         </div>
 
-        {/* Typing Text */}
-        <TypingText text={SAMPLE_TEXT} resetKey={resetKey} />
+        {/* Typing Interface */}
+        <TypingText
+          text={SAMPLE_TEXT}
+          typedText={typedText}
+          onTyping={handleTyping}
+          resetKey={resetKey}
+          disabled={isFinished}
+        />
+
+        {/* Test Status */}
+        <div className="mt-8 text-center">
+          {isFinished ? (
+            <div>
+              <h3 className="mb-2 text-2xl font-semibold text-emerald-400">
+                Test Complete!
+              </h3>
+
+              <p className="text-gray-400">
+                WPM: {wpm} | Accuracy: {accuracy}% | Errors:{" "}
+                {incorrectCharacters}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              {isRunning ? "Keep typing!" : "Start typing to begin the test"}
+            </p>
+          )}
+        </div>
 
         {/* Restart Button */}
-        <div className="mt-10 flex justify-center">
+        <div className="mt-8 flex justify-center">
           <button
             type="button"
-            onClick={() => setResetKey((previous) => previous + 1)}
+            onClick={resetTest}
             aria-label="Restart test"
             title="Restart test"
             className="cursor-pointer rounded-lg p-3 text-gray-400 transition hover:bg-[#1f2937] hover:text-emerald-400"
@@ -106,10 +215,6 @@ function App() {
             <RotateCcw size={22} />
           </button>
         </div>
-
-        <p className="mt-5 text-center text-sm text-gray-500">
-          Start typing to begin the test
-        </p>
       </main>
 
       {/* Footer */}

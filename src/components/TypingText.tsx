@@ -1,40 +1,55 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, type ChangeEvent } from "react";
 
 interface TypingTextProps {
   text: string;
+  typedText: string;
+  onTyping: (value: string) => void;
   resetKey: number;
+  disabled: boolean;
 }
 
-function TypingText({ text, resetKey }: TypingTextProps) {
-  const [typedText, setTypedText] = useState("");
+function TypingText({
+  text,
+  typedText,
+  onTyping,
+  resetKey,
+  disabled,
+}: TypingTextProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Reset the typing input whenever a new test starts.
+  // Focus the input when a new test begins.
   useEffect(() => {
-    setTypedText("");
     inputRef.current?.focus();
   }, [resetKey]);
 
-  // Handle the user's typing.
+  // Handle keyboard input.
   const handleTyping = (event: ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
     const value = event.target.value;
 
+    // Prevent typing beyond the available text.
     if (value.length <= text.length) {
-      setTypedText(value);
+      onTyping(value);
     }
   };
 
   return (
     <div
       className="relative cursor-text rounded-xl bg-[#1f2937] p-8"
-      onClick={() => inputRef.current?.focus()}
+      onClick={() => {
+        if (!disabled) {
+          inputRef.current?.focus();
+        }
+      }}
     >
-      {/* Invisible input captures keyboard events. */}
+      {/* Hidden input for capturing keyboard events */}
       <input
         ref={inputRef}
         type="text"
         value={typedText}
         onChange={handleTyping}
+        disabled={disabled}
         autoComplete="off"
         autoCapitalize="off"
         spellCheck={false}
@@ -42,7 +57,7 @@ function TypingText({ text, resetKey }: TypingTextProps) {
         className="absolute h-px w-px opacity-0"
       />
 
-      {/* Render each character individually. */}
+      {/* Render and highlight individual characters */}
       <div className="break-words text-2xl leading-relaxed tracking-wide">
         {text.split("").map((character, index) => {
           const typedCharacter = typedText[index];
@@ -56,11 +71,10 @@ function TypingText({ text, resetKey }: TypingTextProps) {
                 : "text-red-400";
           }
 
-          const isActive = index === typedText.length;
+          const isActive = !disabled && index === typedText.length;
 
           return (
             <span key={index} className={`relative ${characterColor}`}>
-              {/* Active typing cursor */}
               {isActive && (
                 <span className="absolute -left-[2px] top-0 h-full w-[2px] bg-emerald-400" />
               )}
