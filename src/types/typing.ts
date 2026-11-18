@@ -12,3 +12,9 @@ export interface TestResult {
   duration: number;
   performance: PerformancePoint[];
 }
+
+// A completed test stored in typing history.
+export interface SavedTest extends TestResult {
+  id: string;
+  date: string;
+}

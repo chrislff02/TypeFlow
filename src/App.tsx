@@ -1,9 +1,19 @@
-import { useEffect, useState } from "react";
-import { Keyboard, RotateCcw, GitBranch } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Keyboard,
+  RotateCcw,
+  GitBranch,
+  History as HistoryIcon,
+} from "lucide-react";
 import TypingText from "./components/TypingText";
 import Results from "./components/Results";
 import { generateWords } from "./utils/generateWords";
 import type { PerformancePoint, TestResult } from "./types/typing";
+
+import History from "./components/History";
+import { loadTypingHistory, saveTypingHistory } from "./utils/typingStorage";
+
+import type { SavedTest } from "./types/typing";
 
 const TEST_DURATIONS = [15, 30, 60, 120];
 
@@ -25,7 +35,27 @@ function App() {
   // Store typing speed and accuracy throughout the test.
   const [performance, setPerformance] = useState<PerformancePoint[]>([]);
 
+  // Saved typing history, loaded when the app starts.
+  const [history, setHistory] = useState<SavedTest[]>(loadTypingHistory);
+
+  // Current page: typing test or history.
+  const [currentPage, setCurrentPage] = useState<"test" | "history">("test");
+
+  // Prevent saving the same test more than once.
+  const hasSavedResult = useRef(false);
+
+  // Track whether browser storage is available.
+  const [storageError, setStorageError] = useState(false);
+
   const isRunning = startTime !== null && !isFinished;
+
+  // Update React state and persist typing history.
+  const updateHistory = (updatedHistory: SavedTest[]) => {
+    const saved = saveTypingHistory(updatedHistory);
+
+    setHistory(updatedHistory);
+    setStorageError(!saved);
+  };
 
   // Countdown timer and performance sampling.
   useEffect(() => {
@@ -140,6 +170,40 @@ function App() {
     performance,
   };
 
+  // Save each completed test only once.
+  useEffect(() => {
+    if (!isFinished || hasSavedResult.current) {
+      return;
+    }
+
+    hasSavedResult.current = true;
+
+    const savedTest: SavedTest = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString(),
+      wpm,
+      accuracy,
+      correctCharacters,
+      incorrectCharacters,
+      duration,
+      performance,
+    };
+
+    // Add the completed test to typing history.
+    const updatedHistory = [savedTest, ...history];
+
+    updateHistory(updatedHistory);
+  }, [
+    isFinished,
+    wpm,
+    accuracy,
+    correctCharacters,
+    incorrectCharacters,
+    duration,
+    performance,
+    history,
+  ]);
+
   // Reset the entire test and generate new words.
   const resetTest = () => {
     setText(generateWords(80));
@@ -149,6 +213,17 @@ function App() {
     setIsFinished(false);
     setPerformance([]);
     setResetKey((previous) => previous + 1);
+
+    // Allow the next completed test to be saved.
+    hasSavedResult.current = false;
+
+    // Return to the typing test page.
+    setCurrentPage("test");
+  };
+
+  // Clear saved typing history.
+  const clearHistory = () => {
+    updateHistory([]);
   };
 
   // Change duration and restart.
@@ -169,9 +244,50 @@ function App() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-5 text-gray-400">
-          <span className="text-sm">Typing Speed Test</span>
+        <div className="flex items-center gap-4 text-gray-400">
+          {/* Typing Test Navigation */}
 
+          <button
+            type="button"
+            onClick={() => setCurrentPage("test")}
+            disabled={isRunning}
+            title={
+              isRunning
+                ? "Finish or restart the current test first"
+                : "Start typing test"
+            }
+            className={`text-sm transition ${
+              isRunning
+                ? "cursor-not-allowed opacity-40"
+                : "cursor-pointer hover:text-emerald-400"
+            } ${currentPage === "test" ? "text-emerald-400" : "text-gray-400"}`}
+          >
+            Test
+          </button>
+
+          {/* Typing History Navigation */}
+          <button
+            type="button"
+            onClick={() => setCurrentPage("history")}
+            disabled={isRunning}
+            title={
+              isRunning
+                ? "Finish or restart the current test first"
+                : "View typing history"
+            }
+            className={`flex items-center gap-2 text-sm transition ${
+              isRunning
+                ? "cursor-not-allowed opacity-40"
+                : "cursor-pointer hover:text-emerald-400"
+            } ${
+              currentPage === "history" ? "text-emerald-400" : "text-gray-400"
+            }`}
+          >
+            <HistoryIcon size={18} />
+            <span>History</span>
+          </button>
+
+          {/* GitHub Link */}
           <a
             href="https://github.com"
             target="_blank"
@@ -186,8 +302,9 @@ function App() {
 
       {/* Main Content */}
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-6 pb-20">
-        {isFinished ? (
-          // Display results when the test finishes.
+        {currentPage === "history" ? (
+          <History history={history} onClearHistory={clearHistory} />
+        ) : isFinished ? (
           <Results result={result} onRestart={resetTest} />
         ) : (
           <>
@@ -277,6 +394,13 @@ function App() {
               </button>
             </div>
           </>
+        )}
+
+        {storageError && (
+          <p role="alert" className="mt-6 text-center text-sm text-amber-400">
+            Unable to save typing history in this browser. Your results may not
+            persist after refreshing.
+          </p>
         )}
       </main>
 
