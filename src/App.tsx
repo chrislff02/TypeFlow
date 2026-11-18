@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import TypingText from "./components/TypingText";
 import Results from "./components/Results";
-import { generateWords } from "./utils/generateWords";
+import { generateWords, type Difficulty } from "./utils/generateWords";
 import type { PerformancePoint, TestResult } from "./types/typing";
 
 import History from "./components/History";
@@ -20,8 +20,10 @@ const TEST_DURATIONS = [15, 30, 60, 120];
 function App() {
   const [duration, setDuration] = useState(30);
 
-  // Randomly generated typing text.
-  const [text, setText] = useState(() => generateWords(80));
+  // Currently selected typing difficulty.
+  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
+
+  const [text, setText] = useState(() => generateWords(80, "medium"));
 
   // User input and reset state.
   const [typedText, setTypedText] = useState("");
@@ -132,7 +134,7 @@ function App() {
 
     if (remainingCharacters < 150) {
       setText((previous) => {
-        return `${previous} ${generateWords(50)}`;
+        return `${previous} ${generateWords(50, difficulty)}`;
       });
     }
   };
@@ -205,8 +207,8 @@ function App() {
   ]);
 
   // Reset the entire test and generate new words.
-  const resetTest = () => {
-    setText(generateWords(80));
+  const resetTest = (nextDifficulty: Difficulty = difficulty) => {
+    setText(generateWords(80, nextDifficulty));
     setTypedText("");
     setStartTime(null);
     setElapsedMs(0);
@@ -230,6 +232,14 @@ function App() {
   const changeDuration = (newDuration: number) => {
     setDuration(newDuration);
     resetTest();
+  };
+
+  // Change difficulty and restart the typing test.
+  const changeDifficulty = (newDifficulty: Difficulty) => {
+    if (newDifficulty === difficulty) return;
+
+    setDifficulty(newDifficulty);
+    resetTest(newDifficulty);
   };
 
   return (
@@ -305,7 +315,7 @@ function App() {
         {currentPage === "history" ? (
           <History history={history} onClearHistory={clearHistory} />
         ) : isFinished ? (
-          <Results result={result} onRestart={resetTest} />
+          <Results result={result} onRestart={() => resetTest()} />
         ) : (
           <>
             {/* Introduction */}
@@ -320,8 +330,8 @@ function App() {
             </div>
 
             {/* Test Settings */}
-            <div className="mb-12 flex justify-center">
-              <div className="flex items-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
+            <div className="mb-8 flex justify-center">
+              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
                 <span className="text-sm text-gray-400">Time</span>
 
                 <div className="flex gap-4">
@@ -337,6 +347,30 @@ function App() {
                       }`}
                     >
                       {time}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Difficulty Settings */}
+            <div className="mb-10 flex justify-center">
+              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
+                <span className="text-sm text-gray-400">Difficulty</span>
+
+                <div className="flex gap-4">
+                  {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => changeDifficulty(level)}
+                      className={`cursor-pointer text-sm font-medium capitalize transition ${
+                        difficulty === level
+                          ? "text-emerald-400"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      {level}
                     </button>
                   ))}
                 </div>
@@ -385,7 +419,7 @@ function App() {
             <div className="mt-8 flex justify-center">
               <button
                 type="button"
-                onClick={resetTest}
+                onClick={() => resetTest()}
                 aria-label="Restart test"
                 title="Restart test"
                 className="cursor-pointer rounded-lg p-3 text-gray-400 transition hover:bg-[#1f2937] hover:text-emerald-400"
