@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Keyboard, RotateCcw, GitBranch } from "lucide-react";
 import TypingText from "./components/TypingText";
+import Results from "./components/Results";
 import { generateWords } from "./utils/generateWords";
+import type { PerformancePoint, TestResult } from "./types/typing";
 
 const TEST_DURATIONS = [15, 30, 60, 120];
 
@@ -20,9 +22,12 @@ function App() {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
+  // Store typing speed and accuracy throughout the test.
+  const [performance, setPerformance] = useState<PerformancePoint[]>([]);
+
   const isRunning = startTime !== null && !isFinished;
 
-  // Countdown timer.
+  // Countdown timer and performance sampling.
   useEffect(() => {
     if (!isRunning || startTime === null) return;
 
@@ -31,17 +36,59 @@ function App() {
 
       setElapsedMs(elapsed);
 
+      const currentSecond = Math.floor(elapsed / 1000);
+
+      // Record statistics every completed second.
+      if (currentSecond >= 1) {
+        const correct = typedText
+          .split("")
+          .filter((character, index) => character === text[index]).length;
+
+        const currentWpm = Math.round((correct / 5 / currentSecond) * 60);
+
+        const currentAccuracy =
+          typedText.length > 0
+            ? Math.round((correct / typedText.length) * 100)
+            : 100;
+
+        setPerformance((previous) => {
+          const lastSecond = previous[previous.length - 1]?.second ?? 0;
+
+          // Prevent duplicate measurements.
+          if (currentSecond <= lastSecond) {
+            return previous;
+          }
+
+          return [
+            ...previous,
+            {
+              second: currentSecond,
+              wpm: currentWpm,
+              accuracy: currentAccuracy,
+            },
+          ];
+        });
+      }
+
+      // Automatically finish when the time expires.
       if (elapsed >= duration * 1000) {
         setIsFinished(true);
       }
     }, 100);
 
     return () => window.clearInterval(interval);
-  }, [isRunning, startTime, duration]);
+  }, [isRunning, startTime, duration, typedText, text]);
 
   // Handle typing and generate additional words.
   const handleTyping = (value: string) => {
     if (isFinished) return;
+
+    // Prevent accepting input after the deadline.
+    if (startTime !== null && Date.now() - startTime >= duration * 1000) {
+      setElapsedMs(duration * 1000);
+      setIsFinished(true);
+      return;
+    }
 
     // Start the timer on the first character.
     if (startTime === null && value.length > 0) {
@@ -83,6 +130,16 @@ function App() {
   // Calculate remaining time.
   const timeLeft = Math.max(0, Math.ceil((duration * 1000 - elapsedMs) / 1000));
 
+  // Prepare the completed test results.
+  const result: TestResult = {
+    wpm,
+    accuracy,
+    correctCharacters,
+    incorrectCharacters,
+    duration,
+    performance,
+  };
+
   // Reset the entire test and generate new words.
   const resetTest = () => {
     setText(generateWords(80));
@@ -90,6 +147,7 @@ function App() {
     setStartTime(null);
     setElapsedMs(0);
     setIsFinished(false);
+    setPerformance([]);
     setResetKey((previous) => previous + 1);
   };
 
@@ -128,99 +186,98 @@ function App() {
 
       {/* Main Content */}
       <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-6 pb-20">
-        {/* Introduction */}
-        <div className="mb-12 text-center">
-          <h2 className="mb-3 text-3xl font-semibold">
-            Test your typing speed
-          </h2>
-
-          <p className="text-gray-400">
-            Improve your speed and accuracy, one keystroke at a time.
-          </p>
-        </div>
-
-        {/* Test Settings */}
-        <div className="mb-12 flex justify-center">
-          <div className="flex items-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
-            <span className="text-sm text-gray-400">Time</span>
-
-            <div className="flex gap-4">
-              {TEST_DURATIONS.map((time) => (
-                <button
-                  key={time}
-                  onClick={() => changeDuration(time)}
-                  className={`cursor-pointer text-sm font-medium transition ${
-                    duration === time
-                      ? "text-emerald-400"
-                      : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  {time}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Live Statistics */}
-        <div className="mb-8 flex justify-between text-lg">
-          <div>
-            <span className="text-gray-500">time </span>
-            <span className="font-semibold text-emerald-400">{timeLeft}</span>
-          </div>
-
-          <div>
-            <span className="text-gray-500">wpm </span>
-            <span className="font-semibold text-emerald-400">{wpm}</span>
-          </div>
-
-          <div>
-            <span className="text-gray-500">accuracy </span>
-            <span className="font-semibold text-emerald-400">{accuracy}%</span>
-          </div>
-        </div>
-
-        {/* Typing Interface */}
-        <TypingText
-          text={text}
-          typedText={typedText}
-          onTyping={handleTyping}
-          resetKey={resetKey}
-          disabled={isFinished}
-        />
-
-        {/* Test Status */}
-        <div className="mt-8 text-center">
-          {isFinished ? (
-            <div>
-              <h3 className="mb-2 text-2xl font-semibold text-emerald-400">
-                Test Complete!
-              </h3>
+        {isFinished ? (
+          // Display results when the test finishes.
+          <Results result={result} onRestart={resetTest} />
+        ) : (
+          <>
+            {/* Introduction */}
+            <div className="mb-12 text-center">
+              <h2 className="mb-3 text-3xl font-semibold">
+                Test your typing speed
+              </h2>
 
               <p className="text-gray-400">
-                WPM: {wpm} | Accuracy: {accuracy}% | Errors:{" "}
-                {incorrectCharacters}
+                Improve your speed and accuracy, one keystroke at a time.
               </p>
             </div>
-          ) : (
-            <p className="text-sm text-gray-500">
-              {isRunning ? "Keep typing!" : "Start typing to begin the test"}
-            </p>
-          )}
-        </div>
 
-        {/* Restart Button */}
-        <div className="mt-8 flex justify-center">
-          <button
-            type="button"
-            onClick={resetTest}
-            aria-label="Restart test"
-            title="Restart test"
-            className="cursor-pointer rounded-lg p-3 text-gray-400 transition hover:bg-[#1f2937] hover:text-emerald-400"
-          >
-            <RotateCcw size={22} />
-          </button>
-        </div>
+            {/* Test Settings */}
+            <div className="mb-12 flex justify-center">
+              <div className="flex items-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
+                <span className="text-sm text-gray-400">Time</span>
+
+                <div className="flex gap-4">
+                  {TEST_DURATIONS.map((time) => (
+                    <button
+                      key={time}
+                      type="button"
+                      onClick={() => changeDuration(time)}
+                      className={`cursor-pointer text-sm font-medium transition ${
+                        duration === time
+                          ? "text-emerald-400"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Live Statistics */}
+            <div className="mb-8 flex justify-between text-lg">
+              <div>
+                <span className="text-gray-500">time </span>
+                <span className="font-semibold text-emerald-400">
+                  {timeLeft}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-gray-500">wpm </span>
+                <span className="font-semibold text-emerald-400">{wpm}</span>
+              </div>
+
+              <div>
+                <span className="text-gray-500">accuracy </span>
+                <span className="font-semibold text-emerald-400">
+                  {accuracy}%
+                </span>
+              </div>
+            </div>
+
+            {/* Typing Interface */}
+            <TypingText
+              text={text}
+              typedText={typedText}
+              onTyping={handleTyping}
+              resetKey={resetKey}
+              disabled={isFinished}
+            />
+
+            {/* Test Status */}
+            <div className="mt-8 text-center">
+              <p className="text-sm text-gray-500">
+                {isRunning ? "Keep typing!" : "Start typing to begin the test"}
+              </p>
+            </div>
+
+            {/* Restart Button */}
+            <div className="mt-8 flex justify-center">
+              <button
+                type="button"
+                onClick={resetTest}
+                aria-label="Restart test"
+                title="Restart test"
+                className="cursor-pointer rounded-lg p-3 text-gray-400 transition hover:bg-[#1f2937] hover:text-emerald-400"
+              >
+                <RotateCcw size={22} />
+              </button>
+            </div>
+          </>
+        )}
       </main>
 
       {/* Footer */}
