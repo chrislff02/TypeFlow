@@ -148,6 +148,7 @@ function History({ history, onClearHistory }: HistoryProps) {
                     <th className="pb-4 font-medium">Accuracy</th>
                     <th className="pb-4 font-medium">Errors</th>
                     <th className="pb-4 font-medium">Duration</th>
+                    <th className="pb-4 font-medium">Mode</th>
                   </tr>
                 </thead>
 
@@ -170,6 +171,12 @@ function History({ history, onClearHistory }: HistoryProps) {
                       <td className="py-4">{test.incorrectCharacters}</td>
 
                       <td className="py-4">{test.duration}s</td>
+
+                      <td className="py-4 text-gray-300">
+                        {test.mode === "words"
+                          ? `${test.wordCount} Words`
+                          : "Timed"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

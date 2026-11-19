@@ -8,8 +8,7 @@ import {
 import TypingText from "./components/TypingText";
 import Results from "./components/Results";
 import { generateWords, type Difficulty } from "./utils/generateWords";
-import type { PerformancePoint, TestResult } from "./types/typing";
-
+import type { PerformancePoint, TestResult, TestMode } from "./types/typing";
 import History from "./components/History";
 import { loadTypingHistory, saveTypingHistory } from "./utils/typingStorage";
 
@@ -17,13 +16,35 @@ import type { SavedTest } from "./types/typing";
 
 const TEST_DURATIONS = [15, 30, 60, 120];
 
+const WORD_COUNTS = [10, 25, 50, 100];
+
+// Generate text based on the selected test mode.
+function createTestText(
+  mode: TestMode,
+  count: number,
+  difficulty: Difficulty,
+): string {
+  if (mode === "words") {
+    return generateWords(count, difficulty);
+  }
+
+  // Timed tests begin with 80 words.
+  return generateWords(80, difficulty);
+}
+
 function App() {
   const [duration, setDuration] = useState(30);
+
+  // Selected test mode.
+  const [testMode, setTestMode] = useState<TestMode>("time");
+
+  // Number of words required in word-count mode.
+  const [wordCount, setWordCount] = useState(25);
 
   // Currently selected typing difficulty.
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
-  const [text, setText] = useState(() => generateWords(80, "medium"));
+  const [text, setText] = useState(() => createTestText("time", 25, "medium"));
 
   // User input and reset state.
   const [typedText, setTypedText] = useState("");
@@ -59,18 +80,25 @@ function App() {
     setStorageError(!saved);
   };
 
-  // Countdown timer and performance sampling.
+  // Timer and performance sampling for both test modes.
   useEffect(() => {
     if (!isRunning || startTime === null) return;
 
     const interval = window.setInterval(() => {
-      const elapsed = Math.min(Date.now() - startTime, duration * 1000);
+      const rawElapsed = Date.now() - startTime;
+
+      // Timed tests stop at the selected duration.
+      // Word-count tests continue until all words are typed.
+      const elapsed =
+        testMode === "time"
+          ? Math.min(rawElapsed, duration * 1000)
+          : rawElapsed;
 
       setElapsedMs(elapsed);
 
       const currentSecond = Math.floor(elapsed / 1000);
 
-      // Record statistics every completed second.
+      // Record typing performance every completed second.
       if (currentSecond >= 1) {
         const correct = typedText
           .split("")
@@ -86,7 +114,6 @@ function App() {
         setPerformance((previous) => {
           const lastSecond = previous[previous.length - 1]?.second ?? 0;
 
-          // Prevent duplicate measurements.
           if (currentSecond <= lastSecond) {
             return previous;
           }
@@ -102,40 +129,57 @@ function App() {
         });
       }
 
-      // Automatically finish when the time expires.
-      if (elapsed >= duration * 1000) {
+      // Only timed tests finish when the countdown expires.
+      if (testMode === "time" && elapsed >= duration * 1000) {
         setIsFinished(true);
       }
     }, 100);
 
     return () => window.clearInterval(interval);
-  }, [isRunning, startTime, duration, typedText, text]);
+  }, [isRunning, startTime, duration, testMode, typedText, text]);
 
-  // Handle typing and generate additional words.
+  // Handle typing for timed and word-count tests.
   const handleTyping = (value: string) => {
     if (isFinished) return;
 
-    // Prevent accepting input after the deadline.
-    if (startTime !== null && Date.now() - startTime >= duration * 1000) {
+    // Prevent input after a timed-test deadline.
+    if (
+      testMode === "time" &&
+      startTime !== null &&
+      Date.now() - startTime >= duration * 1000
+    ) {
       setElapsedMs(duration * 1000);
       setIsFinished(true);
       return;
     }
 
     // Start the timer on the first character.
+    const now = Date.now();
+
     if (startTime === null && value.length > 0) {
-      setStartTime(Date.now());
+      setStartTime(now);
     }
 
     setTypedText(value);
 
-    // Add more words when approaching the end.
-    const remainingCharacters = text.length - value.length;
+    // WORD-COUNT MODE:
+    // Finish when the final character has been entered.
+    if (testMode === "words" && value.length === text.length) {
+      const elapsed = now - (startTime ?? now);
 
-    if (remainingCharacters < 150) {
-      setText((previous) => {
-        return `${previous} ${generateWords(50, difficulty)}`;
-      });
+      setElapsedMs(Math.max(elapsed, 1));
+      setIsFinished(true);
+      return;
+    }
+
+    // TIMED MODE:
+    // Generate additional words when running low.
+    if (testMode === "time") {
+      const remainingCharacters = text.length - value.length;
+
+      if (remainingCharacters < 150) {
+        setText((previous) => `${previous} ${generateWords(50, difficulty)}`);
+      }
     }
   };
 
@@ -162,14 +206,30 @@ function App() {
   // Calculate remaining time.
   const timeLeft = Math.max(0, Math.ceil((duration * 1000 - elapsedMs) / 1000));
 
+  // Display elapsed seconds for word-count tests.
+  const elapsedSeconds = Math.floor(elapsedMs / 1000);
+
+  // Track how many words have been reached.
+  const wordsCompleted =
+    typedText.length === 0 ? 0 : typedText.trim().split(/\s+/).length;
+
+  // Show completed words without exceeding the target.
+  const wordProgress = Math.min(wordsCompleted, wordCount);
+
   // Prepare the completed test results.
   const result: TestResult = {
     wpm,
     accuracy,
     correctCharacters,
     incorrectCharacters,
-    duration,
+
+    // Timed tests use the selected duration.
+    // Word tests use their actual completion time.
+    duration: testMode === "time" ? duration : Math.ceil(elapsedMs / 1000),
+
     performance,
+    mode: testMode,
+    wordCount: testMode === "words" ? wordCount : undefined,
   };
 
   // Save each completed test only once.
@@ -187,8 +247,10 @@ function App() {
       accuracy,
       correctCharacters,
       incorrectCharacters,
-      duration,
+      duration: testMode === "time" ? duration : Math.ceil(elapsedMs / 1000),
       performance,
+      mode: testMode,
+      wordCount: testMode === "words" ? wordCount : undefined,
     };
 
     // Add the completed test to typing history.
@@ -206,9 +268,14 @@ function App() {
     history,
   ]);
 
-  // Reset the entire test and generate new words.
-  const resetTest = (nextDifficulty: Difficulty = difficulty) => {
-    setText(generateWords(80, nextDifficulty));
+  // Reset the typing test using the selected settings.
+  const resetTest = (
+    nextDifficulty: Difficulty = difficulty,
+    nextMode: TestMode = testMode,
+    nextWordCount: number = wordCount,
+  ) => {
+    setText(createTestText(nextMode, nextWordCount, nextDifficulty));
+
     setTypedText("");
     setStartTime(null);
     setElapsedMs(0);
@@ -216,7 +283,7 @@ function App() {
     setPerformance([]);
     setResetKey((previous) => previous + 1);
 
-    // Allow the next completed test to be saved.
+    // Allow the next test to be saved.
     hasSavedResult.current = false;
 
     // Return to the typing test page.
@@ -240,6 +307,22 @@ function App() {
 
     setDifficulty(newDifficulty);
     resetTest(newDifficulty);
+  };
+
+  // Switch between timed and word-count tests.
+  const changeTestMode = (newMode: TestMode) => {
+    if (newMode === testMode) return;
+
+    setTestMode(newMode);
+    resetTest(difficulty, newMode, wordCount);
+  };
+
+  // Change the number of words required.
+  const changeWordCount = (newCount: number) => {
+    if (newCount === wordCount) return;
+
+    setWordCount(newCount);
+    resetTest(difficulty, testMode, newCount);
   };
 
   return (
@@ -329,26 +412,76 @@ function App() {
               </p>
             </div>
 
-            {/* Test Settings */}
-            <div className="mb-8 flex justify-center">
-              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
-                <span className="text-sm text-gray-400">Time</span>
+            {/* Test Mode Selection */}
+            <div className="mb-6 flex justify-center">
+              <div className="flex items-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
+                <span className="text-sm text-gray-400">Mode</span>
 
                 <div className="flex gap-4">
-                  {TEST_DURATIONS.map((time) => (
-                    <button
-                      key={time}
-                      type="button"
-                      onClick={() => changeDuration(time)}
-                      className={`cursor-pointer text-sm font-medium transition ${
-                        duration === time
-                          ? "text-emerald-400"
-                          : "text-gray-400 hover:text-white"
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => changeTestMode("time")}
+                    className={`cursor-pointer text-sm font-medium transition ${
+                      testMode === "time"
+                        ? "text-emerald-400"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Time
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => changeTestMode("words")}
+                    className={`cursor-pointer text-sm font-medium transition ${
+                      testMode === "words"
+                        ? "text-emerald-400"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Words
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Time or Word-Count Settings */}
+            <div className="mb-8 flex justify-center">
+              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
+                <span className="text-sm text-gray-400">
+                  {testMode === "time" ? "Time" : "Words"}
+                </span>
+
+                <div className="flex flex-wrap justify-center gap-4">
+                  {testMode === "time"
+                    ? TEST_DURATIONS.map((time) => (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => changeDuration(time)}
+                          className={`cursor-pointer text-sm font-medium transition ${
+                            duration === time
+                              ? "text-emerald-400"
+                              : "text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          {time}
+                        </button>
+                      ))
+                    : WORD_COUNTS.map((count) => (
+                        <button
+                          key={count}
+                          type="button"
+                          onClick={() => changeWordCount(count)}
+                          className={`cursor-pointer text-sm font-medium transition ${
+                            wordCount === count
+                              ? "text-emerald-400"
+                              : "text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          {count}
+                        </button>
+                      ))}
                 </div>
               </div>
             </div>
@@ -378,11 +511,14 @@ function App() {
             </div>
 
             {/* Live Statistics */}
-            <div className="mb-8 flex justify-between text-lg">
+            <div className="mb-8 flex justify-between gap-4 text-lg">
               <div>
-                <span className="text-gray-500">time </span>
+                <span className="text-gray-500">
+                  {testMode === "time" ? "time " : "elapsed "}
+                </span>
+
                 <span className="font-semibold text-emerald-400">
-                  {timeLeft}
+                  {testMode === "time" ? timeLeft : `${elapsedSeconds}s`}
                 </span>
               </div>
 
@@ -398,6 +534,16 @@ function App() {
                 </span>
               </div>
             </div>
+
+            {/* Word-Count Progress */}
+            {testMode === "words" && (
+              <div className="mb-6 text-center text-sm text-gray-400">
+                Words reached:{" "}
+                <span className="font-semibold text-emerald-400">
+                  {wordProgress} / {wordCount}
+                </span>
+              </div>
+            )}
 
             {/* Typing Interface */}
             <TypingText

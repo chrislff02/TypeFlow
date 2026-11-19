@@ -1,3 +1,5 @@
+export type TestMode = "time" | "words";
+
 export interface PerformancePoint {
   second: number;
   wpm: number;
@@ -11,9 +13,12 @@ export interface TestResult {
   incorrectCharacters: number;
   duration: number;
   performance: PerformancePoint[];
+
+  // Optional for compatibility with previously saved tests.
+  mode?: TestMode;
+  wordCount?: number;
 }
 
-// A completed test stored in typing history.
 export interface SavedTest extends TestResult {
   id: string;
   date: string;

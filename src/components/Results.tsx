@@ -28,6 +28,12 @@ function Results({ result, onRestart }: ResultsProps) {
         <p className="mt-2 text-gray-400">Here's how you performed.</p>
       </div>
 
+      <p className="mt-3 text-sm text-emerald-400">
+        {result.mode === "words"
+          ? `Word Count Test — ${result.wordCount} words`
+          : `Timed Test — ${result.duration} seconds`}
+      </p>
+
       {/* Results Statistics */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="rounded-xl bg-[#1f2937] p-5">
