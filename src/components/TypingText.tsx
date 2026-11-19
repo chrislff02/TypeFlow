@@ -47,10 +47,8 @@ function TypingText({
 
     // Leave room for one line below the cursor.
     const lineHeight = 42;
-
     const bottomBoundary = containerRect.bottom - lineHeight;
 
-    // Scroll down when the cursor approaches the bottom.
     if (characterRect.bottom > bottomBoundary) {
       container.scrollTop += characterRect.bottom - bottomBoundary;
     }
@@ -61,12 +59,10 @@ function TypingText({
     }
   }, [typedText, text, disabled, resetKey]);
 
-  // Handle keyboard input.
   const handleTyping = (event: ChangeEvent<HTMLInputElement>) => {
     if (disabled) return;
 
     const value = event.target.value;
-
     if (value.length <= text.length) {
       onTyping(value);
     }
@@ -74,7 +70,7 @@ function TypingText({
 
   return (
     <div
-      className="relative cursor-text rounded-xl bg-[#1f2937] p-8"
+      className="relative cursor-text rounded-xl bg-app-surface p-8"
       onClick={() => {
         if (!disabled) {
           inputRef.current?.focus();
@@ -100,14 +96,13 @@ function TypingText({
         <div className="break-words text-2xl leading-[42px] tracking-wide">
           {text.split("").map((character, index) => {
             const typedCharacter = typedText[index];
-
-            let characterColor = "text-gray-400";
+            let characterColor = "text-app-muted";
 
             if (typedCharacter !== undefined) {
               characterColor =
                 typedCharacter === character
-                  ? "text-emerald-400"
-                  : "text-red-400";
+                  ? "text-app-accent"
+                  : "text-app-error";
             }
 
             const isActive = !disabled && index === typedText.length;
@@ -118,11 +113,9 @@ function TypingText({
                 ref={isActive ? activeCharacterRef : null}
                 className={`relative ${characterColor}`}
               >
-                {/* Active typing cursor */}
                 {isActive && (
-                  <span className="absolute -left-[2px] top-0 h-full w-[2px] bg-emerald-400" />
+                  <span className="absolute -left-[2px] top-0 h-full w-[2px] bg-app-accent" />
                 )}
-
                 {character}
               </span>
             );

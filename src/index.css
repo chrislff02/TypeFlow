@@ -1,1 +1,59 @@
 @import "tailwindcss";
+
+/* Dark theme — default */
+:root,
+[data-theme="dark"] {
+  --app-bg: #111827;
+  --app-surface: #1f2937;
+  --app-text: #e5e7eb;
+  --app-muted: #9ca3af;
+  --app-subtle: #6b7280;
+  --app-accent: #34d399;
+  --app-accent-hover: #6ee7b7;
+  --app-border: #374151;
+  --app-error: #f87171;
+  --app-button-text: #111827;
+
+  color-scheme: dark;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --app-bg: #f9fafb;
+  --app-surface: #e5e7eb;
+  --app-text: #111827;
+  --app-muted: #4b5563;
+  --app-subtle: #6b7280;
+  --app-accent: #047857;
+  --app-accent-hover: #065f46;
+  --app-border: #cbd5e1;
+  --app-error: #dc2626;
+  --app-button-text: #ffffff;
+
+  color-scheme: light;
+}
+
+/* Tailwind v4 utility colors */
+@theme inline {
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-text: var(--app-text);
+  --color-app-muted: var(--app-muted);
+  --color-app-subtle: var(--app-subtle);
+  --color-app-accent: var(--app-accent);
+  --color-app-accent-hover: var(--app-accent-hover);
+  --color-app-border: var(--app-border);
+  --color-app-error: var(--app-error);
+  --color-app-button-text: var(--app-button-text);
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+}

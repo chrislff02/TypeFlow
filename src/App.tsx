@@ -14,6 +14,10 @@ import { loadTypingHistory, saveTypingHistory } from "./utils/typingStorage";
 
 import type { SavedTest } from "./types/typing";
 
+import { Moon, Sun } from "lucide-react";
+
+import { loadPreferences, savePreferences } from "./utils/preferencesStorage";
+
 const TEST_DURATIONS = [15, 30, 60, 120];
 
 const WORD_COUNTS = [10, 25, 50, 100];
@@ -33,18 +37,20 @@ function createTestText(
 }
 
 function App() {
-  const [duration, setDuration] = useState(30);
+  // Load saved settings when TypeFlow starts.
+  const [preferences, setPreferences] = useState(loadPreferences);
 
-  // Selected test mode.
-  const [testMode, setTestMode] = useState<TestMode>("time");
+  // Read the selected preferences.
+  const { theme, testMode, duration, wordCount, difficulty } = preferences;
 
-  // Number of words required in word-count mode.
-  const [wordCount, setWordCount] = useState(25);
-
-  // Currently selected typing difficulty.
-  const [difficulty, setDifficulty] = useState<Difficulty>("medium");
-
-  const [text, setText] = useState(() => createTestText("time", 25, "medium"));
+  // Generate text using the saved test settings.
+  const [text, setText] = useState(() =>
+    createTestText(
+      preferences.testMode,
+      preferences.wordCount,
+      preferences.difficulty,
+    ),
+  );
 
   // User input and reset state.
   const [typedText, setTypedText] = useState("");
@@ -140,6 +146,11 @@ function App() {
 
     return () => window.clearInterval(interval);
   }, [isRunning, startTime, duration, testMode, typedText, text]);
+
+  // Persist user preferences to localStorage.
+  useEffect(() => {
+    savePreferences(preferences);
+  }, [preferences]);
 
   // Handle typing for timed and word-count tests.
   const handleTyping = (value: string) => {
@@ -308,37 +319,61 @@ function App() {
 
   // Change duration and restart.
   const changeDuration = (newDuration: number) => {
-    setDuration(newDuration);
+    if (newDuration === duration) return;
+
+    setPreferences((previous) => ({
+      ...previous,
+      duration: newDuration,
+    }));
+
     resetTest();
   };
 
-  // Change difficulty and restart the typing test.
+  // Change difficulty and restart.
   const changeDifficulty = (newDifficulty: Difficulty) => {
     if (newDifficulty === difficulty) return;
 
-    setDifficulty(newDifficulty);
+    setPreferences((previous) => ({
+      ...previous,
+      difficulty: newDifficulty,
+    }));
+
     resetTest(newDifficulty);
   };
 
-  // Switch between timed and word-count tests.
+  // Change between timed and word-count tests.
   const changeTestMode = useCallback(
     (newMode: TestMode) => {
       if (newMode === testMode) return;
 
-      setTestMode(newMode);
+      setPreferences((previous) => ({
+        ...previous,
+        testMode: newMode,
+      }));
 
-      // Restart using the newly selected mode.
       resetTest(difficulty, newMode, wordCount);
     },
     [testMode, difficulty, wordCount, resetTest],
   );
 
-  // Change the number of words required.
+  // Change the selected word count.
   const changeWordCount = (newCount: number) => {
     if (newCount === wordCount) return;
 
-    setWordCount(newCount);
+    setPreferences((previous) => ({
+      ...previous,
+      wordCount: newCount,
+    }));
+
     resetTest(difficulty, testMode, newCount);
+  };
+
+  // Toggle between dark and light themes.
+  const toggleTheme = () => {
+    setPreferences((previous) => ({
+      ...previous,
+      theme: previous.theme === "dark" ? "light" : "dark",
+    }));
   };
 
   // Handle keyboard shortcuts for the typing test.
@@ -431,18 +466,21 @@ function App() {
   }, [currentPage, isFinished, resetTest, changeTestMode]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#111827] text-[#e5e7eb]">
+    <div
+      data-theme={theme}
+      className="flex min-h-screen flex-col bg-app-bg text-app-text"
+    >
       {/* Header */}
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-8">
         <div className="flex items-center gap-3">
-          <Keyboard className="h-8 w-8 text-emerald-400" />
+          <Keyboard className="h-8 w-8 text-app-accent" />
 
           <h1 className="text-2xl font-bold tracking-tight">
-            Type<span className="text-emerald-400">Flow</span>
+            Type<span className="text-app-accent">Flow</span>
           </h1>
         </div>
 
-        <div className="flex items-center gap-4 text-gray-400">
+        <div className="flex items-center gap-4 text-app-muted">
           {/* Typing Test Navigation */}
 
           <button
@@ -457,8 +495,8 @@ function App() {
             className={`text-sm transition ${
               isRunning
                 ? "cursor-not-allowed opacity-40"
-                : "cursor-pointer hover:text-emerald-400"
-            } ${currentPage === "test" ? "text-emerald-400" : "text-gray-400"}`}
+                : "cursor-pointer hover:text-app-accent"
+            } ${currentPage === "test" ? "text-app-accent" : "text-app-muted"}`}
           >
             Test
           </button>
@@ -476,13 +514,26 @@ function App() {
             className={`flex items-center gap-2 text-sm transition ${
               isRunning
                 ? "cursor-not-allowed opacity-40"
-                : "cursor-pointer hover:text-emerald-400"
+                : "cursor-pointer hover:text-app-accent"
             } ${
-              currentPage === "history" ? "text-emerald-400" : "text-gray-400"
+              currentPage === "history" ? "text-app-accent" : "text-app-muted"
             }`}
           >
             <HistoryIcon size={18} />
             <span>History</span>
+          </button>
+
+          {/* Theme Toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={
+              theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+            }
+            title={theme === "dark" ? "Light mode" : "Dark mode"}
+            className="cursor-pointer rounded-lg p-2 text-app-muted transition hover:bg-app-surface hover:text-app-accent"
+          >
+            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
           {/* GitHub Link */}
@@ -491,7 +542,7 @@ function App() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
-            className="transition hover:text-emerald-400"
+            className="transition hover:text-app-accent"
           >
             <GitBranch size={20} />
           </a>
@@ -512,15 +563,15 @@ function App() {
                 Test your typing speed
               </h2>
 
-              <p className="text-gray-400">
+              <p className="text-app-muted">
                 Improve your speed and accuracy, one keystroke at a time.
               </p>
             </div>
 
             {/* Test Mode Selection */}
             <div className="mb-6 flex justify-center">
-              <div className="flex items-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
-                <span className="text-sm text-gray-400">Mode</span>
+              <div className="flex items-center gap-5 rounded-xl bg-app-surface px-6 py-4">
+                <span className="text-sm text-app-muted">Mode</span>
 
                 <div className="flex gap-4">
                   <button
@@ -528,8 +579,8 @@ function App() {
                     onClick={() => changeTestMode("time")}
                     className={`cursor-pointer text-sm font-medium transition ${
                       testMode === "time"
-                        ? "text-emerald-400"
-                        : "text-gray-400 hover:text-white"
+                        ? "text-app-accent"
+                        : "text-app-muted hover:text-app-text"
                     }`}
                   >
                     Time
@@ -540,8 +591,8 @@ function App() {
                     onClick={() => changeTestMode("words")}
                     className={`cursor-pointer text-sm font-medium transition ${
                       testMode === "words"
-                        ? "text-emerald-400"
-                        : "text-gray-400 hover:text-white"
+                        ? "text-app-accent"
+                        : "text-app-muted hover:text-app-text"
                     }`}
                   >
                     Words
@@ -552,8 +603,8 @@ function App() {
 
             {/* Time or Word-Count Settings */}
             <div className="mb-8 flex justify-center">
-              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
-                <span className="text-sm text-gray-400">
+              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-app-surface px-6 py-4">
+                <span className="text-sm text-app-muted">
                   {testMode === "time" ? "Time" : "Words"}
                 </span>
 
@@ -566,8 +617,8 @@ function App() {
                           onClick={() => changeDuration(time)}
                           className={`cursor-pointer text-sm font-medium transition ${
                             duration === time
-                              ? "text-emerald-400"
-                              : "text-gray-400 hover:text-white"
+                              ? "text-app-accent"
+                              : "text-app-muted hover:text-app-text"
                           }`}
                         >
                           {time}
@@ -580,8 +631,8 @@ function App() {
                           onClick={() => changeWordCount(count)}
                           className={`cursor-pointer text-sm font-medium transition ${
                             wordCount === count
-                              ? "text-emerald-400"
-                              : "text-gray-400 hover:text-white"
+                              ? "text-app-accent"
+                              : "text-app-muted hover:text-app-text"
                           }`}
                         >
                           {count}
@@ -593,8 +644,8 @@ function App() {
 
             {/* Difficulty Settings */}
             <div className="mb-10 flex justify-center">
-              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-[#1f2937] px-6 py-4">
-                <span className="text-sm text-gray-400">Difficulty</span>
+              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-app-surface px-6 py-4">
+                <span className="text-sm text-app-muted">Difficulty</span>
 
                 <div className="flex gap-4">
                   {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
@@ -604,8 +655,8 @@ function App() {
                       onClick={() => changeDifficulty(level)}
                       className={`cursor-pointer text-sm font-medium capitalize transition ${
                         difficulty === level
-                          ? "text-emerald-400"
-                          : "text-gray-400 hover:text-white"
+                          ? "text-app-accent"
+                          : "text-app-muted hover:text-app-text"
                       }`}
                     >
                       {level}
@@ -618,23 +669,23 @@ function App() {
             {/* Live Statistics */}
             <div className="mb-8 flex justify-between gap-4 text-lg">
               <div>
-                <span className="text-gray-500">
+                <span className="text-app-subtle">
                   {testMode === "time" ? "time " : "elapsed "}
                 </span>
 
-                <span className="font-semibold text-emerald-400">
+                <span className="font-semibold text-app-accent">
                   {testMode === "time" ? timeLeft : `${elapsedSeconds}s`}
                 </span>
               </div>
 
               <div>
-                <span className="text-gray-500">wpm </span>
-                <span className="font-semibold text-emerald-400">{wpm}</span>
+                <span className="text-app-subtle">wpm </span>
+                <span className="font-semibold text-app-accent">{wpm}</span>
               </div>
 
               <div>
-                <span className="text-gray-500">accuracy </span>
-                <span className="font-semibold text-emerald-400">
+                <span className="text-app-subtle">accuracy </span>
+                <span className="font-semibold text-app-accent">
                   {accuracy}%
                 </span>
               </div>
@@ -642,9 +693,9 @@ function App() {
 
             {/* Word-Count Progress */}
             {testMode === "words" && (
-              <div className="mb-6 text-center text-sm text-gray-400">
+              <div className="mb-6 text-center text-sm text-app-muted">
                 Words reached:{" "}
-                <span className="font-semibold text-emerald-400">
+                <span className="font-semibold text-app-accent">
                   {wordProgress} / {wordCount}
                 </span>
               </div>
@@ -661,7 +712,7 @@ function App() {
 
             {/* Test Status */}
             <div className="mt-8 text-center">
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-app-subtle">
                 {isRunning ? "Keep typing!" : "Start typing to begin the test"}
               </p>
             </div>
@@ -673,32 +724,33 @@ function App() {
                 onClick={() => resetTest()}
                 aria-label="Restart test"
                 title="Restart test"
-                className="cursor-pointer rounded-lg p-3 text-gray-400 transition hover:bg-[#1f2937] hover:text-emerald-400"
+                className="cursor-pointer rounded-lg p-3 text-app-muted transition hover:bg-app-surface hover:text-app-accent"
               >
                 <RotateCcw size={22} />
               </button>
             </div>
 
             {/* Keyboard Shortcut Hints */}
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-gray-500">
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-app-subtle">
               <span>
-                <kbd className="rounded bg-[#1f2937] px-2 py-1">
+                <kbd className="rounded bg-app-surface px-2 py-1">
                   Tab + Enter
                 </kbd>{" "}
                 Restart
               </span>
 
               <span>
-                <kbd className="rounded bg-[#1f2937] px-2 py-1">Esc</kbd> Focus
+                <kbd className="rounded bg-app-surface px-2 py-1">Esc</kbd>{" "}
+                Focus
               </span>
 
               <span>
-                <kbd className="rounded bg-[#1f2937] px-2 py-1">Alt + 1</kbd>{" "}
+                <kbd className="rounded bg-app-surface px-2 py-1">Alt + 1</kbd>{" "}
                 Time
               </span>
 
               <span>
-                <kbd className="rounded bg-[#1f2937] px-2 py-1">Alt + 2</kbd>{" "}
+                <kbd className="rounded bg-app-surface px-2 py-1">Alt + 2</kbd>{" "}
                 Words
               </span>
             </div>
@@ -714,7 +766,7 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="py-6 text-center text-sm text-gray-500">
+      <footer className="py-6 text-center text-sm text-app-subtle">
         TypeFlow — Built with React & TypeScript
       </footer>
     </div>
