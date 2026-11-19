@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   RotateCcw,
@@ -66,6 +66,9 @@ function App() {
 
   // Prevent saving the same test more than once.
   const hasSavedResult = useRef(false);
+
+  // Track whether Tab is being held for keyboard shortcuts.
+  const tabHeld = useRef(false);
 
   // Track whether browser storage is available.
   const [storageError, setStorageError] = useState(false);
@@ -264,31 +267,39 @@ function App() {
     correctCharacters,
     incorrectCharacters,
     duration,
+    elapsedMs,
+    testMode,
+    wordCount,
     performance,
     history,
   ]);
 
   // Reset the typing test using the selected settings.
-  const resetTest = (
-    nextDifficulty: Difficulty = difficulty,
-    nextMode: TestMode = testMode,
-    nextWordCount: number = wordCount,
-  ) => {
-    setText(createTestText(nextMode, nextWordCount, nextDifficulty));
+  const resetTest = useCallback(
+    (
+      nextDifficulty: Difficulty = difficulty,
+      nextMode: TestMode = testMode,
+      nextWordCount: number = wordCount,
+    ) => {
+      // Generate new words for the selected mode.
+      setText(createTestText(nextMode, nextWordCount, nextDifficulty));
 
-    setTypedText("");
-    setStartTime(null);
-    setElapsedMs(0);
-    setIsFinished(false);
-    setPerformance([]);
-    setResetKey((previous) => previous + 1);
+      // Reset typing and timer state.
+      setTypedText("");
+      setStartTime(null);
+      setElapsedMs(0);
+      setIsFinished(false);
+      setPerformance([]);
+      setResetKey((previous) => previous + 1);
 
-    // Allow the next test to be saved.
-    hasSavedResult.current = false;
+      // Allow the next result to be saved.
+      hasSavedResult.current = false;
 
-    // Return to the typing test page.
-    setCurrentPage("test");
-  };
+      // Return to the typing test.
+      setCurrentPage("test");
+    },
+    [difficulty, testMode, wordCount],
+  );
 
   // Clear saved typing history.
   const clearHistory = () => {
@@ -310,12 +321,17 @@ function App() {
   };
 
   // Switch between timed and word-count tests.
-  const changeTestMode = (newMode: TestMode) => {
-    if (newMode === testMode) return;
+  const changeTestMode = useCallback(
+    (newMode: TestMode) => {
+      if (newMode === testMode) return;
 
-    setTestMode(newMode);
-    resetTest(difficulty, newMode, wordCount);
-  };
+      setTestMode(newMode);
+
+      // Restart using the newly selected mode.
+      resetTest(difficulty, newMode, wordCount);
+    },
+    [testMode, difficulty, wordCount, resetTest],
+  );
 
   // Change the number of words required.
   const changeWordCount = (newCount: number) => {
@@ -324,6 +340,95 @@ function App() {
     setWordCount(newCount);
     resetTest(difficulty, testMode, newCount);
   };
+
+  // Handle keyboard shortcuts for the typing test.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only use shortcuts on the typing test screen.
+      if (currentPage !== "test") return;
+
+      // Track Tab without blocking normal Tab navigation.
+      if (
+        event.key === "Tab" &&
+        !event.shiftKey &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey
+      ) {
+        tabHeld.current = true;
+        return;
+      }
+
+      // Tab + Enter: Restart the current test.
+      if (
+        event.key === "Enter" &&
+        tabHeld.current &&
+        !event.repeat &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        tabHeld.current = false;
+        resetTest();
+        return;
+      }
+
+      // Escape: Return focus to the typing input.
+      if (event.key === "Escape" && !isFinished) {
+        event.preventDefault();
+
+        const typingInput = document.querySelector<HTMLInputElement>(
+          'input[aria-label="Typing test input"]',
+        );
+
+        typingInput?.focus();
+        return;
+      }
+
+      // Alt + 1 / Alt + 2: Change test mode.
+      if (
+        event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        !event.repeat
+      ) {
+        if (event.code === "Digit1") {
+          event.preventDefault();
+          changeTestMode("time");
+        } else if (event.code === "Digit2") {
+          event.preventDefault();
+          changeTestMode("words");
+        }
+      }
+    };
+
+    // Stop tracking Tab when the key is released.
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Tab") {
+        tabHeld.current = false;
+      }
+    };
+
+    // Reset the shortcut if the browser loses focus.
+    const handleBlur = () => {
+      tabHeld.current = false;
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    // Clean up listeners when dependencies change.
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [currentPage, isFinished, resetTest, changeTestMode]);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#111827] text-[#e5e7eb]">
@@ -572,6 +677,30 @@ function App() {
               >
                 <RotateCcw size={22} />
               </button>
+            </div>
+
+            {/* Keyboard Shortcut Hints */}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-gray-500">
+              <span>
+                <kbd className="rounded bg-[#1f2937] px-2 py-1">
+                  Tab + Enter
+                </kbd>{" "}
+                Restart
+              </span>
+
+              <span>
+                <kbd className="rounded bg-[#1f2937] px-2 py-1">Esc</kbd> Focus
+              </span>
+
+              <span>
+                <kbd className="rounded bg-[#1f2937] px-2 py-1">Alt + 1</kbd>{" "}
+                Time
+              </span>
+
+              <span>
+                <kbd className="rounded bg-[#1f2937] px-2 py-1">Alt + 2</kbd>{" "}
+                Words
+              </span>
             </div>
           </>
         )}
