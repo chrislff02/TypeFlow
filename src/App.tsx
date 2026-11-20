@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Keyboard,
   RotateCcw,
@@ -7,7 +14,7 @@ import {
   Sun,
 } from "lucide-react";
 import TypingText from "./components/TypingText";
-import Results from "./components/Results";
+
 import { generateWords, type Difficulty } from "./utils/generateWords";
 import type { PerformancePoint, TestResult, TestMode } from "./types/typing";
 import History from "./components/History";
@@ -16,6 +23,9 @@ import { loadTypingHistory, saveTypingHistory } from "./utils/typingStorage";
 import type { SavedTest } from "./types/typing";
 
 import { loadPreferences, savePreferences } from "./utils/preferencesStorage";
+
+// Load the results dashboard only when needed.
+const Results = lazy(() => import("./components/Results"));
 
 const TEST_DURATIONS = [15, 30, 60, 120];
 
@@ -542,7 +552,15 @@ function App() {
         {currentPage === "history" ? (
           <History history={history} onClearHistory={clearHistory} />
         ) : isFinished ? (
-          <Results result={result} onRestart={() => resetTest()} />
+          <Suspense
+            fallback={
+              <div className="py-12 text-center text-app-muted">
+                Loading results...
+              </div>
+            }
+          >
+            <Results result={result} onRestart={() => resetTest()} />
+          </Suspense>
         ) : (
           <>
             {/* Introduction */}
