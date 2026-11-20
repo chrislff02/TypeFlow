@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   RotateCcw,
-  GitBranch,
   History as HistoryIcon,
+  Moon,
+  Sun,
 } from "lucide-react";
 import TypingText from "./components/TypingText";
 import Results from "./components/Results";
@@ -13,8 +14,6 @@ import History from "./components/History";
 import { loadTypingHistory, saveTypingHistory } from "./utils/typingStorage";
 
 import type { SavedTest } from "./types/typing";
-
-import { Moon, Sun } from "lucide-react";
 
 import { loadPreferences, savePreferences } from "./utils/preferencesStorage";
 
@@ -535,17 +534,6 @@ function App() {
           >
             {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
           </button>
-
-          {/* GitHub Link */}
-          <a
-            href="https://github.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="GitHub"
-            className="transition hover:text-app-accent"
-          >
-            <GitBranch size={20} />
-          </a>
         </div>
       </header>
 
@@ -558,18 +546,13 @@ function App() {
         ) : (
           <>
             {/* Introduction */}
-            <div className="mb-12 text-center">
-              <h2 className="mb-3 text-3xl font-semibold">
-                Test your typing speed
-              </h2>
-
-              <p className="text-app-muted">
-                Improve your speed and accuracy, one keystroke at a time.
-              </p>
+            <div className="mb-10 text-center">
+              <h2 className="text-3xl font-semibold">Test Your Typing Speed</h2>
             </div>
 
-            {/* Test Mode Selection */}
-            <div className="mb-6 flex justify-center">
+            {/* Test Settings */}
+            <div className="mb-10 flex flex-col items-center gap-4">
+              {/* First Row: Test Mode */}
               <div className="flex items-center gap-5 rounded-xl bg-app-surface px-6 py-4">
                 <span className="text-sm text-app-muted">Mode</span>
 
@@ -599,69 +582,70 @@ function App() {
                   </button>
                 </div>
               </div>
-            </div>
 
-            {/* Time or Word-Count Settings */}
-            <div className="mb-8 flex justify-center">
-              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-app-surface px-6 py-4">
-                <span className="text-sm text-app-muted">
-                  {testMode === "time" ? "Time" : "Words"}
-                </span>
+              {/* Second Row: Time/Words and Difficulty */}
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                {/* Time or Word Count */}
+                <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-app-surface px-6 py-4">
+                  <span className="text-sm text-app-muted">
+                    {testMode === "time" ? "Time" : "Words"}
+                  </span>
 
-                <div className="flex flex-wrap justify-center gap-4">
-                  {testMode === "time"
-                    ? TEST_DURATIONS.map((time) => (
-                        <button
-                          key={time}
-                          type="button"
-                          onClick={() => changeDuration(time)}
-                          className={`cursor-pointer text-sm font-medium transition ${
-                            duration === time
-                              ? "text-app-accent"
-                              : "text-app-muted hover:text-app-text"
-                          }`}
-                        >
-                          {time}
-                        </button>
-                      ))
-                    : WORD_COUNTS.map((count) => (
-                        <button
-                          key={count}
-                          type="button"
-                          onClick={() => changeWordCount(count)}
-                          className={`cursor-pointer text-sm font-medium transition ${
-                            wordCount === count
-                              ? "text-app-accent"
-                              : "text-app-muted hover:text-app-text"
-                          }`}
-                        >
-                          {count}
-                        </button>
-                      ))}
+                  <div className="flex gap-4">
+                    {testMode === "time"
+                      ? TEST_DURATIONS.map((time) => (
+                          <button
+                            key={time}
+                            type="button"
+                            onClick={() => changeDuration(time)}
+                            className={`cursor-pointer text-sm font-medium transition ${
+                              duration === time
+                                ? "text-app-accent"
+                                : "text-app-muted hover:text-app-text"
+                            }`}
+                          >
+                            {time}
+                          </button>
+                        ))
+                      : WORD_COUNTS.map((count) => (
+                          <button
+                            key={count}
+                            type="button"
+                            onClick={() => changeWordCount(count)}
+                            className={`cursor-pointer text-sm font-medium transition ${
+                              wordCount === count
+                                ? "text-app-accent"
+                                : "text-app-muted hover:text-app-text"
+                            }`}
+                          >
+                            {count}
+                          </button>
+                        ))}
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Difficulty Settings */}
-            <div className="mb-10 flex justify-center">
-              <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-app-surface px-6 py-4">
-                <span className="text-sm text-app-muted">Difficulty</span>
+                {/* Difficulty */}
+                <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-app-surface px-6 py-4">
+                  <span className="text-sm text-app-muted">Difficulty</span>
 
-                <div className="flex gap-4">
-                  {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => changeDifficulty(level)}
-                      className={`cursor-pointer text-sm font-medium capitalize transition ${
-                        difficulty === level
-                          ? "text-app-accent"
-                          : "text-app-muted hover:text-app-text"
-                      }`}
-                    >
-                      {level}
-                    </button>
-                  ))}
+                  <div className="flex gap-4">
+                    {(["easy", "medium", "hard"] as Difficulty[]).map(
+                      (level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => changeDifficulty(level)}
+                          className={`cursor-pointer text-sm font-medium capitalize transition ${
+                            difficulty === level
+                              ? "text-app-accent"
+                              : "text-app-muted hover:text-app-text"
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      ),
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -691,16 +675,6 @@ function App() {
               </div>
             </div>
 
-            {/* Word-Count Progress */}
-            {testMode === "words" && (
-              <div className="mb-6 text-center text-sm text-app-muted">
-                Words reached:{" "}
-                <span className="font-semibold text-app-accent">
-                  {wordProgress} / {wordCount}
-                </span>
-              </div>
-            )}
-
             {/* Typing Interface */}
             <TypingText
               text={text}
@@ -710,8 +684,18 @@ function App() {
               disabled={isFinished}
             />
 
+            {/* Word-Count Progress */}
+            {testMode === "words" && (
+              <div className="mt-6 text-center text-sm text-app-muted">
+                Words reached:{" "}
+                <span className="font-semibold text-app-accent">
+                  {wordProgress} / {wordCount}
+                </span>
+              </div>
+            )}
+
             {/* Test Status */}
-            <div className="mt-8 text-center">
+            <div className="mt-5 text-center">
               <p className="text-sm text-app-subtle">
                 {isRunning ? "Keep typing!" : "Start typing to begin the test"}
               </p>
@@ -764,11 +748,6 @@ function App() {
           </p>
         )}
       </main>
-
-      {/* Footer */}
-      <footer className="py-6 text-center text-sm text-app-subtle">
-        TypeFlow — Built with React & TypeScript
-      </footer>
     </div>
   );
 }
