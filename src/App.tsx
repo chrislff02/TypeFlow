@@ -6,13 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  Keyboard,
-  RotateCcw,
-  History as HistoryIcon,
-  Moon,
-  Sun,
-} from "lucide-react";
+import { Keyboard, RotateCcw, Moon, Sun } from "lucide-react";
 import TypingText from "./components/TypingText";
 
 import { generateWords, type Difficulty } from "./utils/generateWords";
@@ -528,7 +522,6 @@ function App() {
               currentPage === "history" ? "text-app-accent" : "text-app-muted"
             }`}
           >
-            <HistoryIcon size={18} />
             <span>History</span>
           </button>
 
