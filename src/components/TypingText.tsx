@@ -105,6 +105,12 @@ function TypingText({
                   : "text-app-error";
             }
 
+            // Detect incorrectly typed spaces.
+            const isIncorrectSpace =
+              character === " " &&
+              typedCharacter !== undefined &&
+              typedCharacter !== " ";
+
             const isActive = !disabled && index === typedText.length;
 
             return (
@@ -113,9 +119,19 @@ function TypingText({
                 ref={isActive ? activeCharacterRef : null}
                 className={`relative ${characterColor}`}
               >
+                {/* Active typing cursor */}
                 {isActive && (
                   <span className="absolute -left-[2px] top-0 h-full w-[2px] bg-app-accent" />
                 )}
+
+                {/* Highlight incorrectly typed spaces */}
+                {isIncorrectSpace && (
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute bottom-0 left-0 h-[3px] w-full rounded-sm bg-app-error"
+                  />
+                )}
+
                 {character}
               </span>
             );
