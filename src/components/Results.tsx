@@ -77,6 +77,8 @@ function Results({ result, onRestart }: ResultsProps) {
               <CartesianGrid stroke="var(--app-border)" strokeDasharray="3 3" />
               <XAxis
                 dataKey="second"
+                type="number"
+                domain={[0, "dataMax"]}
                 stroke="var(--app-muted)"
                 tick={{ fontSize: 12 }}
                 label={{

@@ -83,9 +83,13 @@ function TypingText({
         type="text"
         value={typedText}
         onChange={handleTyping}
+        onPaste={(event) => event.preventDefault()}
+        onDrop={(event) => event.preventDefault()}
+        onCut={(event) => event.preventDefault()}
         disabled={disabled}
         autoComplete="off"
         autoCapitalize="off"
+        autoCorrect="off"
         spellCheck={false}
         aria-label="Typing test input"
         className="absolute h-px w-px opacity-0"

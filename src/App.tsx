@@ -214,11 +214,15 @@ function App() {
       ? Math.round((correctCharacters / typedText.length) * 100)
       : 100;
 
-  // Calculate WPM.
-  const elapsedMinutes = Math.max(elapsedMs, 1000) / 60000;
+  // Use precise elapsed time for completed tests.
+  // Apply a minimum of one second for live statistics.
+  const elapsedMinutes = Math.max(elapsedMs, isFinished ? 1 : 1000) / 60000;
 
+  // Calculate typing speed in words per minute.
   const wpm =
-    startTime !== null ? Math.round(correctCharacters / 5 / elapsedMinutes) : 0;
+    startTime !== null && elapsedMs > 0
+      ? Math.round(correctCharacters / 5 / elapsedMinutes)
+      : 0;
 
   // Calculate remaining time.
   const timeLeft = Math.max(0, Math.ceil((duration * 1000 - elapsedMs) / 1000));
@@ -226,12 +230,34 @@ function App() {
   // Display elapsed seconds for word-count tests.
   const elapsedSeconds = Math.floor(elapsedMs / 1000);
 
-  // Track how many words have been reached.
-  const wordsCompleted =
-    typedText.length === 0 ? 0 : typedText.trim().split(/\s+/).length;
+  // Get the expected text reached by the user.
+  const reachedText = text.slice(0, typedText.length);
 
-  // Show completed words without exceeding the target.
-  const wordProgress = Math.min(wordsCompleted, wordCount);
+  // Count expected words reached, even if spaces were mistyped.
+  const wordsReached =
+    reachedText.trim().length === 0
+      ? 0
+      : reachedText.trim().split(/\s+/).length;
+
+  // Prevent progress from exceeding the selected word count.
+  const wordProgress = Math.min(wordsReached, wordCount);
+
+  // Calculate the final performance point.
+  const finalPerformancePoint: PerformancePoint = {
+    second: Math.round(elapsedMs / 100) / 10,
+    wpm,
+    accuracy,
+  };
+
+  // Ensure the performance chart includes the final result.
+  const finalPerformance = isFinished
+    ? [
+        ...performance.filter(
+          (point) => point.second < finalPerformancePoint.second,
+        ),
+        finalPerformancePoint,
+      ]
+    : performance;
 
   // Prepare the completed test results.
   const result: TestResult = {
@@ -244,7 +270,7 @@ function App() {
     // Word tests use their actual completion time.
     duration: testMode === "time" ? duration : Math.ceil(elapsedMs / 1000),
 
-    performance,
+    performance: finalPerformance,
     mode: testMode,
     wordCount: testMode === "words" ? wordCount : undefined,
   };
@@ -257,6 +283,19 @@ function App() {
 
     hasSavedResult.current = true;
 
+    // Calculate the final performance point.
+    const finalPoint: PerformancePoint = {
+      second: Math.round(elapsedMs / 100) / 10,
+      wpm,
+      accuracy,
+    };
+
+    // Include the final score without duplicate points.
+    const completedPerformance = [
+      ...performance.filter((point) => point.second < finalPoint.second),
+      finalPoint,
+    ];
+
     const savedTest: SavedTest = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
@@ -265,7 +304,7 @@ function App() {
       correctCharacters,
       incorrectCharacters,
       duration: testMode === "time" ? duration : Math.ceil(elapsedMs / 1000),
-      performance,
+      performance: completedPerformance,
       mode: testMode,
       wordCount: testMode === "words" ? wordCount : undefined,
     };
