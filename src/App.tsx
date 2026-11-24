@@ -513,20 +513,20 @@ function App() {
       className="flex min-h-screen flex-col bg-app-bg text-app-text"
     >
       {/* Header */}
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-8">
+      <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 sm:px-6 sm:py-8">
         <div className="flex items-center gap-3">
-          <Keyboard className="h-8 w-8 text-app-accent" />
+          <Keyboard className="h-7 w-7 text-app-accent sm:h-8 sm:w-8" />
 
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
             Type<span className="text-app-accent">Flow</span>
           </h1>
         </div>
 
-        <div className="flex items-center gap-4 text-app-muted">
+        <div className="flex items-center gap-3 text-app-muted sm:gap-4">
           {/* Typing Test Navigation */}
-
           <button
             type="button"
+            aria-current={currentPage === "test" ? "page" : undefined}
             onClick={() => setCurrentPage("test")}
             disabled={isRunning}
             title={
@@ -546,6 +546,7 @@ function App() {
           {/* Typing History Navigation */}
           <button
             type="button"
+            aria-current={currentPage === "history" ? "page" : undefined}
             onClick={() => setCurrentPage("history")}
             disabled={isRunning}
             title={
@@ -553,7 +554,7 @@ function App() {
                 ? "Finish or restart the current test first"
                 : "View typing history"
             }
-            className={`flex items-center gap-2 text-sm transition ${
+            className={`text-sm transition ${
               isRunning
                 ? "cursor-not-allowed opacity-40"
                 : "cursor-pointer hover:text-app-accent"
@@ -561,7 +562,7 @@ function App() {
               currentPage === "history" ? "text-app-accent" : "text-app-muted"
             }`}
           >
-            <span>History</span>
+            History
           </button>
 
           {/* Theme Toggle */}
@@ -580,7 +581,7 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-6 pb-20">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center px-4 pb-10 sm:px-6 sm:pb-20">
         {currentPage === "history" ? (
           <History history={history} onClearHistory={clearHistory} />
         ) : isFinished ? (
@@ -597,36 +598,32 @@ function App() {
           <>
             {/* Introduction */}
             <div className="mb-10 text-center">
-              <h2 className="text-3xl font-semibold">Test Your Typing Speed</h2>
+              <h2 className="text-2xl font-semibold sm:text-3xl">
+                Test Your Typing Speed
+              </h2>
             </div>
 
             {/* Test Settings */}
             <div className="mb-10 flex flex-col items-center gap-4">
               {/* First Row: Test Mode */}
-              <div className="flex items-center gap-5 rounded-xl bg-app-surface px-6 py-4">
+              <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl bg-app-surface px-4 py-3 sm:px-6 sm:py-4">
                 <span className="text-sm text-app-muted">Mode</span>
 
-                <div className="flex gap-4">
+                <div className="flex flex-wrap justify-center gap-1">
                   <button
                     type="button"
+                    aria-pressed={testMode === "time"}
                     onClick={() => changeTestMode("time")}
-                    className={`cursor-pointer text-sm font-medium transition ${
-                      testMode === "time"
-                        ? "text-app-accent"
-                        : "text-app-muted hover:text-app-text"
-                    }`}
+                    className="setting-option cursor-pointer text-sm font-medium text-app-muted hover:text-app-text"
                   >
                     Time
                   </button>
 
                   <button
                     type="button"
+                    aria-pressed={testMode === "words"}
                     onClick={() => changeTestMode("words")}
-                    className={`cursor-pointer text-sm font-medium transition ${
-                      testMode === "words"
-                        ? "text-app-accent"
-                        : "text-app-muted hover:text-app-text"
-                    }`}
+                    className="setting-option cursor-pointer text-sm font-medium text-app-muted hover:text-app-text"
                   >
                     Words
                   </button>
@@ -636,23 +633,20 @@ function App() {
               {/* Second Row: Time/Words and Difficulty */}
               <div className="flex flex-wrap items-center justify-center gap-4">
                 {/* Time or Word Count */}
-                <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-app-surface px-6 py-4">
+                <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl bg-app-surface px-4 py-3 sm:px-6 sm:py-4">
                   <span className="text-sm text-app-muted">
                     {testMode === "time" ? "Time" : "Words"}
                   </span>
 
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap justify-center gap-1">
                     {testMode === "time"
                       ? TEST_DURATIONS.map((time) => (
                           <button
                             key={time}
                             type="button"
+                            aria-pressed={duration === time}
                             onClick={() => changeDuration(time)}
-                            className={`cursor-pointer text-sm font-medium transition ${
-                              duration === time
-                                ? "text-app-accent"
-                                : "text-app-muted hover:text-app-text"
-                            }`}
+                            className="setting-option cursor-pointer text-sm font-medium text-app-muted hover:text-app-text"
                           >
                             {time}
                           </button>
@@ -661,12 +655,9 @@ function App() {
                           <button
                             key={count}
                             type="button"
+                            aria-pressed={wordCount === count}
                             onClick={() => changeWordCount(count)}
-                            className={`cursor-pointer text-sm font-medium transition ${
-                              wordCount === count
-                                ? "text-app-accent"
-                                : "text-app-muted hover:text-app-text"
-                            }`}
+                            className="setting-option cursor-pointer text-sm font-medium text-app-muted hover:text-app-text"
                           >
                             {count}
                           </button>
@@ -675,21 +666,18 @@ function App() {
                 </div>
 
                 {/* Difficulty */}
-                <div className="flex flex-wrap items-center justify-center gap-5 rounded-xl bg-app-surface px-6 py-4">
+                <div className="flex flex-wrap items-center justify-center gap-3 rounded-xl bg-app-surface px-4 py-3 sm:px-6 sm:py-4">
                   <span className="text-sm text-app-muted">Difficulty</span>
 
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap justify-center gap-1">
                     {(["easy", "medium", "hard"] as Difficulty[]).map(
                       (level) => (
                         <button
                           key={level}
                           type="button"
+                          aria-pressed={difficulty === level}
                           onClick={() => changeDifficulty(level)}
-                          className={`cursor-pointer text-sm font-medium capitalize transition ${
-                            difficulty === level
-                              ? "text-app-accent"
-                              : "text-app-muted hover:text-app-text"
-                          }`}
+                          className="setting-option cursor-pointer text-sm font-medium capitalize text-app-muted hover:text-app-text"
                         >
                           {level}
                         </button>
@@ -701,7 +689,7 @@ function App() {
             </div>
 
             {/* Live Statistics */}
-            <div className="mb-8 flex justify-between gap-4 text-lg">
+            <div className="mb-8 flex justify-between gap-4 text-sm sm:text-lg">
               <div>
                 <span className="text-app-subtle">
                   {testMode === "time" ? "time " : "elapsed "}

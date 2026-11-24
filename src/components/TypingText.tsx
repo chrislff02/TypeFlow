@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 
 interface TypingTextProps {
   text: string;
@@ -59,10 +65,36 @@ function TypingText({
     }
   }, [typedText, text, disabled, resetKey]);
 
+  // Keep typing input sequential.
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const blockedKeys = [
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Home",
+      "End",
+      "Delete",
+    ];
+
+    // Prevent moving the cursor into previously typed text.
+    if (blockedKeys.includes(event.key)) {
+      event.preventDefault();
+      return;
+    }
+
+    // Prevent selecting all typed text.
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+    }
+  };
+
+  // Process typing input.
   const handleTyping = (event: ChangeEvent<HTMLInputElement>) => {
     if (disabled) return;
 
     const value = event.target.value;
+
     if (value.length <= text.length) {
       onTyping(value);
     }
@@ -70,7 +102,7 @@ function TypingText({
 
   return (
     <div
-      className="relative cursor-text rounded-xl bg-app-surface p-8"
+      className="relative cursor-text rounded-xl border border-app-border bg-app-surface p-4 transition-colors focus-within:border-app-accent sm:p-8"
       onClick={() => {
         if (!disabled) {
           inputRef.current?.focus();
@@ -83,6 +115,16 @@ function TypingText({
         type="text"
         value={typedText}
         onChange={handleTyping}
+        onKeyDown={handleKeyDown}
+        onSelect={(event) => {
+          const input = event.currentTarget;
+          const end = input.value.length;
+
+          // Keep the actual input cursor at the end.
+          if (input.selectionStart !== end || input.selectionEnd !== end) {
+            input.setSelectionRange(end, end);
+          }
+        }}
         onPaste={(event) => event.preventDefault()}
         onDrop={(event) => event.preventDefault()}
         onCut={(event) => event.preventDefault()}
@@ -97,11 +139,12 @@ function TypingText({
 
       {/* Fixed-height typing window: three lines. */}
       <div ref={textContainerRef} className="h-[126px] overflow-hidden">
-        <div className="break-words text-2xl leading-[42px] tracking-wide">
+        <div className="break-words text-xl leading-[42px] tracking-wide sm:text-2xl">
           {text.split("").map((character, index) => {
             const typedCharacter = typedText[index];
             let characterColor = "text-app-muted";
 
+            // Highlight correct and incorrect characters.
             if (typedCharacter !== undefined) {
               characterColor =
                 typedCharacter === character
@@ -115,6 +158,7 @@ function TypingText({
               typedCharacter !== undefined &&
               typedCharacter !== " ";
 
+            // Identify the current typing position.
             const isActive = !disabled && index === typedText.length;
 
             return (

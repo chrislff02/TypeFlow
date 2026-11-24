@@ -23,12 +23,12 @@
   --app-surface: #d4cbc2;
   --app-text: #4f4745;
   --app-muted: #5f5754;
-  --app-subtle: #7a716d;
-  --app-accent: #6f8f72;
-  --app-accent-hover: #5f7d62;
-  --app-border: #b8aea5;
-  --app-error: #b55c57;
+  --app-subtle: #625952;
+  --app-accent: #49664c;
+  --app-accent-hover: #38533b;
+  --app-error: #9e3939;
   --app-button-text: #f8f4ef;
+  --app-border: #b8aea5;
 
   color-scheme: light;
 }
@@ -56,4 +56,27 @@ body {
   min-width: 320px;
   background-color: var(--app-bg);
   color: var(--app-text);
+}
+
+/* Visible keyboard focus indicators */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 4px;
+}
+
+/* Typing test settings buttons */
+.setting-option {
+  padding: 4px 10px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  transition: all 150ms ease;
+}
+
+/* Highlight the currently selected option */
+.setting-option[aria-pressed="true"] {
+  border-color: var(--app-accent);
+  color: var(--app-accent);
+  font-weight: 600;
+  background-color: color-mix(in srgb, var(--app-accent) 8%, transparent);
 }
