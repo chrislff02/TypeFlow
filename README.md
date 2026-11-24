@@ -93,7 +93,7 @@ and track their progress over time.
 3. Install the dependencies.
 
 ```bash
-npm install
+npm ci
 ```
 
 ### Run Locally
@@ -188,7 +188,7 @@ Additional optimizations include:
 - Production asset minification
 - Automatic Vite code splitting
 - Disabled performance chart animations
-- Bounded typing text rendering through a scrolling viewport
+- Fixed-height scrolling viewport for the typing interface
 
 ## Privacy and Data Storage
 
