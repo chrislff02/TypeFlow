@@ -3,6 +3,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
 } from "react";
@@ -17,6 +18,7 @@ import { loadTypingHistory, saveTypingHistory } from "./utils/typingStorage";
 import type { SavedTest } from "./types/typing";
 
 import { loadPreferences, savePreferences } from "./utils/preferencesStorage";
+import { calculateTypingStats } from "./utils/calculateTypingStats";
 
 // Load the results dashboard only when needed.
 const Results = lazy(() => import("./components/Results"));
@@ -92,9 +94,17 @@ function App() {
     setStorageError(!saved);
   };
 
-  // Timer and performance sampling for both test modes.
+  // Calculate current typing statistics without restarting the timer.
+  const getCurrentTypingStats = useEffectEvent((elapsed: number) => {
+    return calculateTypingStats(text, typedText, elapsed);
+  });
+
+  // Stable timer and performance sampling for both test modes.
   useEffect(() => {
     if (!isRunning || startTime === null) return;
+
+    // Track the last recorded second.
+    let lastRecordedSecond = 0;
 
     const interval = window.setInterval(() => {
       const rawElapsed = Date.now() - startTime;
@@ -110,18 +120,12 @@ function App() {
 
       const currentSecond = Math.floor(elapsed / 1000);
 
-      // Record typing performance every completed second.
-      if (currentSecond >= 1) {
-        const correct = typedText
-          .split("")
-          .filter((character, index) => character === text[index]).length;
+      // Record performance once per elapsed second.
+      if (currentSecond >= 1 && currentSecond > lastRecordedSecond) {
+        lastRecordedSecond = currentSecond;
 
-        const currentWpm = Math.round((correct / 5 / currentSecond) * 60);
-
-        const currentAccuracy =
-          typedText.length > 0
-            ? Math.round((correct / typedText.length) * 100)
-            : 100;
+        // Read the latest text and typing statistics.
+        const stats = getCurrentTypingStats(elapsed);
 
         setPerformance((previous) => {
           const lastSecond = previous[previous.length - 1]?.second ?? 0;
@@ -133,22 +137,23 @@ function App() {
           return [
             ...previous,
             {
-              second: currentSecond,
-              wpm: currentWpm,
-              accuracy: currentAccuracy,
+              second: Math.round(elapsed / 100) / 10,
+              wpm: stats.wpm,
+              accuracy: stats.accuracy,
             },
           ];
         });
       }
 
-      // Only timed tests finish when the countdown expires.
+      // Finish timed tests when the countdown expires.
       if (testMode === "time" && elapsed >= duration * 1000) {
         setIsFinished(true);
       }
     }, 100);
 
+    // Clean up the timer when the test ends or resets.
     return () => window.clearInterval(interval);
-  }, [isRunning, startTime, duration, testMode, typedText, text]);
+  }, [isRunning, startTime, duration, testMode]);
 
   // Persist user preferences to localStorage.
   useEffect(() => {
@@ -200,29 +205,9 @@ function App() {
     }
   };
 
-  // Count correct characters.
-  const correctCharacters = typedText
-    .split("")
-    .filter((character, index) => character === text[index]).length;
-
-  // Count incorrect characters.
-  const incorrectCharacters = typedText.length - correctCharacters;
-
-  // Calculate accuracy.
-  const accuracy =
-    typedText.length > 0
-      ? Math.round((correctCharacters / typedText.length) * 100)
-      : 100;
-
-  // Use precise elapsed time for completed tests.
-  // Apply a minimum of one second for live statistics.
-  const elapsedMinutes = Math.max(elapsedMs, isFinished ? 1 : 1000) / 60000;
-
-  // Calculate typing speed in words per minute.
-  const wpm =
-    startTime !== null && elapsedMs > 0
-      ? Math.round(correctCharacters / 5 / elapsedMinutes)
-      : 0;
+  // Calculate live and final typing statistics.
+  const { wpm, accuracy, correctCharacters, incorrectCharacters } =
+    calculateTypingStats(text, typedText, elapsedMs, isFinished);
 
   // Calculate remaining time.
   const timeLeft = Math.max(0, Math.ceil((duration * 1000 - elapsedMs) / 1000));
